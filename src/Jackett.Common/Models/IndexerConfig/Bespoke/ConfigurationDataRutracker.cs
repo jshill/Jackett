@@ -1,6 +1,6 @@
-﻿namespace Jackett.Common.Models.IndexerConfig.Bespoke
+namespace Jackett.Common.Models.IndexerConfig.Bespoke
 {
-    class ConfigurationDataRutracker : ConfigurationDataCaptchaLogin
+    internal class ConfigurationDataRutracker : ConfigurationDataCaptchaLogin
     {
         public BoolItem StripRussianLetters { get; private set; }
         public DisplayItem CaptchaWarning { get; private set; }

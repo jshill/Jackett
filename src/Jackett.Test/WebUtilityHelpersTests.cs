@@ -1,4 +1,3 @@
-﻿using System;
 using System.Text;
 using System.Web;
 using Jackett.Common.Helpers;
@@ -15,12 +14,7 @@ namespace Jackett.Test
         public WebUtilityHelpersTests()
         {
             //https://docs.microsoft.com/en-us/dotnet/api/system.text.codepagesencodingprovider?view=netcore-2.0
-#if !NET461
-            if (Environment.OSVersion.Platform == PlatformID.Win32NT)
-            {
-                Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
-            }
-#endif
+            Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
             _codePagesToTest = new Encoding[]{
                 Encoding.UTF8,
@@ -39,7 +33,7 @@ namespace Jackett.Test
             };
         }
 
-        
+
 
         [TestMethod]
         public void WebUtilityHelpers_UrlEncode_CorrectlyEncodes()

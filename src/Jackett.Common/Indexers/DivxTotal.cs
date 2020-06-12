@@ -1,6 +1,7 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Linq;
 using System.Net;
@@ -9,19 +10,18 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using AngleSharp.Dom;
 using AngleSharp.Html.Parser;
-
 using Jackett.Common.Models;
 using Jackett.Common.Models.IndexerConfig;
 using Jackett.Common.Services.Interfaces;
 using Jackett.Common.Utils;
 using Newtonsoft.Json.Linq;
 using NLog;
-using WebClient = Jackett.Common.Utils.Clients.WebClient;
 using static Jackett.Common.Models.IndexerConfig.ConfigurationData;
+using WebClient = Jackett.Common.Utils.Clients.WebClient;
 
 namespace Jackett.Common.Indexers
 {
-    // ReSharper disable once UnusedType.Global
+    [ExcludeFromCodeCoverage]
     public class DivxTotal : BaseWebIndexer
     {
         private const int MaxResultsPerPage = 15;
@@ -45,15 +45,16 @@ namespace Jackett.Common.Indexers
         }
 
         public DivxTotal(IIndexerConfigurationService configService, WebClient w, Logger l, IProtectionService ps)
-            : base(name: "DivxTotal",
-                description: "DivxTotal is a SPANISH site for Movies, TV series and Software",
-                link: "https://www.divxtotal.la/",
-                caps: new TorznabCapabilities(),
-                configService: configService,
-                client: w,
-                logger: l,
-                p: ps,
-                configData: new ConfigurationData())
+            : base(id: "divxtotal",
+                   name: "DivxTotal",
+                   description: "DivxTotal is a SPANISH site for Movies, TV series and Software",
+                   link: "https://www.divxtotal.la/",
+                   caps: new TorznabCapabilities(),
+                   configService: configService,
+                   client: w,
+                   logger: l,
+                   p: ps,
+                   configData: new ConfigurationData())
         {
             Encoding = Encoding.UTF8;
             Language = "es-es";
@@ -91,7 +92,7 @@ namespace Jackett.Common.Indexers
 
             // we remove parts from the original query
             query = ParseQuery(query);
-            var qc = new NameValueCollection {{"s", query.SearchTerm}};
+            var qc = new NameValueCollection { { "s", query.SearchTerm } };
 
             var page = 1;
             var isLastPage = false;
@@ -112,16 +113,24 @@ namespace Jackett.Common.Indexers
                     if (table == null)
                         break;
                     var rows = table.QuerySelectorAll("tr");
-                    isLastPage = rows.Length -1 < MaxResultsPerPage; // rows includes the header
+                    isLastPage = rows.Length - 1 <= MaxResultsPerPage; // rows includes the header
                     var isHeader = true;
                     foreach (var row in rows)
                     {
-                        if (isHeader) {
+                        if (isHeader)
+                        {
                             isHeader = false;
                             continue;
                         }
 
-                        await ParseRelease(releases, row, query, matchWords);
+                        try
+                        {
+                            await ParseRelease(releases, row, query, matchWords);
+                        }
+                        catch (Exception ex)
+                        {
+                            logger.Error($"CardigannIndexer ({Id}): Error while parsing row '{row.ToHtmlPretty()}':\n\n{ex}");
+                        }
                     }
                 }
                 catch (Exception ex)
@@ -151,7 +160,7 @@ namespace Jackett.Common.Indexers
                 var searchResultParser = new HtmlParser();
                 var doc = searchResultParser.ParseDocument(result.Content);
 
-                var onclick = doc.QuerySelector("a[onclick*=\"/download/torrent.php\"]")
+                var onclick = doc.QuerySelector("a[onclick*=\"/torrent\"]")
                     .GetAttribute("onclick");
                 downloadUrl = OnclickToDownloadLink(onclick);
             }
@@ -185,7 +194,8 @@ namespace Jackett.Common.Indexers
             if (cat == DivxTotalCategories.Series)
             {
                 await ParseSeriesRelease(releases, query, commentsLink, cat, publishDate);
-            } else if (query.Episode == null) // if it's scene series, we don't return other categories
+            }
+            else if (query.Episode == null) // if it's scene series, we don't return other categories
             {
                 if (cat == DivxTotalCategories.Peliculas || cat == DivxTotalCategories.PeliculasHd ||
                     cat == DivxTotalCategories.Peliculas3D || cat == DivxTotalCategories.PeliculasDvdr)
@@ -216,7 +226,8 @@ namespace Jackett.Common.Indexers
                 var isHeader = true;
                 foreach (var row in rows)
                 {
-                    if (isHeader) {
+                    if (isHeader)
+                    {
                         isHeader = false;
                         continue;
                     }
@@ -273,8 +284,8 @@ namespace Jackett.Common.Indexers
                 title += " SPANISH BDRip x264";
             else if (cat == DivxTotalCategories.PeliculasDvdr)
             {
-                 title += " SPANISH DVDR";
-                 size = TryToParseSize(sizeStr, DivxTotalFizeSizes.PeliculasDvdr);
+                title += " SPANISH DVDR";
+                size = TryToParseSize(sizeStr, DivxTotalFizeSizes.PeliculasDvdr);
             }
             else
                 throw new Exception("Unknown category " + cat);
@@ -285,28 +296,25 @@ namespace Jackett.Common.Indexers
         private void GenerateRelease(ICollection<ReleaseInfo> releases, string title, string commentsLink,
             string downloadLink, string cat, DateTime publishDate, long size)
         {
-            // ReSharper disable once UseObjectOrCollectionInitializer
-            var release = new ReleaseInfo();
-
-            release.Title = title;
-            release.Comments = new Uri(commentsLink);
-            release.Link = new Uri(downloadLink);
-            release.Guid = release.Link;
-
-            release.Category = MapTrackerCatToNewznab(cat);
-            release.PublishDate = publishDate;
-            release.Size = size;
-
-            release.Files = 1;
-
-            release.Seeders = 1;
-            release.Peers = 2;
-
-            release.MinimumRatio = 1;
-            release.MinimumSeedTime = 172800; // 48 hours
-            release.DownloadVolumeFactor = 0;
-            release.UploadVolumeFactor = 1;
-
+            var link = new Uri(downloadLink);
+            var comments = new Uri(commentsLink);
+            var release = new ReleaseInfo
+            {
+                Title = title,
+                Comments = comments,
+                Link = link,
+                Guid = link,
+                Category = MapTrackerCatToNewznab(cat),
+                PublishDate = publishDate,
+                Size = size,
+                Files = 1,
+                Seeders = 1,
+                Peers = 2,
+                MinimumRatio = 1,
+                MinimumSeedTime = 172800, // 48 hours
+                DownloadVolumeFactor = 0,
+                UploadVolumeFactor = 1,
+            };
             releases.Add(release);
         }
 
@@ -323,13 +331,13 @@ namespace Jackett.Common.Indexers
             // this code split the words, remove words with 2 letters or less, remove accents and lowercase
             var queryMatches = Regex.Matches(queryStr, @"\b[\w']*\b");
             var queryWords = from m in queryMatches.Cast<Match>()
-                where !string.IsNullOrEmpty(m.Value) && m.Value.Length > 2
-                select Encoding.UTF8.GetString(Encoding.GetEncoding("ISO-8859-8").GetBytes(m.Value.ToLower()));
+                             where !string.IsNullOrEmpty(m.Value) && m.Value.Length > 2
+                             select Encoding.UTF8.GetString(Encoding.GetEncoding("ISO-8859-8").GetBytes(m.Value.ToLower()));
 
             var titleMatches = Regex.Matches(title, @"\b[\w']*\b");
             var titleWords = from m in titleMatches.Cast<Match>()
-                where !string.IsNullOrEmpty(m.Value) && m.Value.Length > 2
-                select Encoding.UTF8.GetString(Encoding.GetEncoding("ISO-8859-8").GetBytes(m.Value.ToLower()));
+                             where !string.IsNullOrEmpty(m.Value) && m.Value.Length > 2
+                             select Encoding.UTF8.GetString(Encoding.GetEncoding("ISO-8859-8").GetBytes(m.Value.ToLower()));
             titleWords = titleWords.ToArray();
 
             return queryWords.All(word => titleWords.Contains(word));
@@ -413,7 +421,7 @@ namespace Jackett.Common.Indexers
         private static long TryToParseSize(string sizeToParse, long sizeDefault)
         {
             try
-            { 
+            {
                 return ReleaseInfo.GetBytes(sizeToParse);
             }
             catch
