@@ -306,6 +306,7 @@ namespace Jackett.Updater
                 "Definitions/eotforum.yml",
                 "Definitions/estrenosdtl.yml",
                 "Definitions/evolutionpalace.yml",
+                "Definitions/extratorrent-ag.yml",
                 "Definitions/exoticaz.yml", // migrated to C#
                 "Definitions/extratorrentclone.yml",
                 "Definitions/feedurneed.yml",
@@ -357,6 +358,7 @@ namespace Jackett.Updater
                 "Definitions/rns.yml", // site merged with audiobooktorrents
                 "Definitions/rockethd.yml",
                 "Definitions/rockhardlossless.yml",
+                "Definitions/rodvd.yml",
                 "Definitions/scenefz.yml", // migrated to C# XtremeZone base tracker
                 "Definitions/scenehd.yml", // migrated to C# (use JSON API)
                 "Definitions/scenereactor.yml",
